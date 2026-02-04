@@ -4,7 +4,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { createOpenAI } from '@ai-sdk/openai'
 
 const agentScopeRuntime = createOpenAI({
-  baseURL: 'http://localhost:8090/compatible-mode/v1',
+  baseURL: 'http://localhost:8080/compatible-mode/v1',
   apiKey: process.env.CUSTOM_OPENAI_API_KEY || 'EMPTY',
 })
 

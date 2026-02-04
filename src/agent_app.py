@@ -16,7 +16,7 @@ from agentscope_runtime.engine.services.session_history import (
 )
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 app = AgentApp(
     app_name="Jarvis",

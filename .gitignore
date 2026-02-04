@@ -33,9 +33,6 @@ htmlcov/
 *.sqlite
 *.sqlite3
 
-# uv
-.python-version
-
 # Temporary files
 *.tmp
 .DS_Store
