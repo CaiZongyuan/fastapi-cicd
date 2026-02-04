@@ -3,8 +3,21 @@ services:
     image: ${TCR_REGISTRY:?}/${TCR_NAMESPACE:?}/fastapi-cicd-nginx:${TAG:-latest}
     ports:
       - "80:80"
+      - "443:443"
     depends_on:
       - backend
+    environment:
+      NGINX_TEMPLATE: prod
+      SERVER_NAME: ${SERVER_NAME:?}
+      UPSTREAM: ${UPSTREAM:-http://backend:8080}
+      STREAM_PATH_PREFIX: ${STREAM_PATH_PREFIX:-/sync/}
+      CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-20m}
+      PROXY_READ_TIMEOUT: ${PROXY_READ_TIMEOUT:-3600s}
+      PROXY_SEND_TIMEOUT: ${PROXY_SEND_TIMEOUT:-3600s}
+      SSL_CERT_PATH: /etc/nginx/certs/origin.crt
+      SSL_KEY_PATH: /etc/nginx/certs/origin.key
+    volumes:
+      - ${CERTS_DIR:-/etc/nginx/certs}:/etc/nginx/certs:ro
     restart: unless-stopped
 
   backend:
@@ -15,4 +28,3 @@ services:
       HOST: 0.0.0.0
       PORT: 8080
     restart: unless-stopped
-

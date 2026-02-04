@@ -37,31 +37,26 @@ jobs:
 
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             TAG="${GITHUB_REF_NAME}"
-            BACKEND_TAGS="${REG}/${NS}/fastapi-cicd-backend:${TAG}"
-            NGINX_TAGS="${REG}/${NS}/fastapi-cicd-nginx:${TAG}"
-
             {
               echo "backend_tags<<EOF"
-              echo "${BACKEND_TAGS}"
+              echo "${REG}/${NS}/fastapi-cicd-backend:${TAG}"
               echo "EOF"
               echo "nginx_tags<<EOF"
-              echo "${NGINX_TAGS}"
+              echo "${REG}/${NS}/fastapi-cicd-nginx:${TAG}"
               echo "EOF"
             } >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
           SHA_SHORT="$(echo "${GITHUB_SHA}" | cut -c1-7)"
-          BACKEND_TAGS="${REG}/${NS}/fastapi-cicd-backend:sha-${SHA_SHORT}
-          ${REG}/${NS}/fastapi-cicd-backend:latest"
-          NGINX_TAGS="${REG}/${NS}/fastapi-cicd-nginx:sha-${SHA_SHORT}
-          ${REG}/${NS}/fastapi-cicd-nginx:latest"
           {
             echo "backend_tags<<EOF"
-            echo "${BACKEND_TAGS}"
+            echo "${REG}/${NS}/fastapi-cicd-backend:sha-${SHA_SHORT}"
+            echo "${REG}/${NS}/fastapi-cicd-backend:latest"
             echo "EOF"
             echo "nginx_tags<<EOF"
-            echo "${NGINX_TAGS}"
+            echo "${REG}/${NS}/fastapi-cicd-nginx:sha-${SHA_SHORT}"
+            echo "${REG}/${NS}/fastapi-cicd-nginx:latest"
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"
 

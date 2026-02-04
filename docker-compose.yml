@@ -7,11 +7,23 @@ services:
       - "80:80"
     depends_on:
       - backend
+    environment:
+      NGINX_TEMPLATE: dev
+      SERVER_NAME: ${SERVER_NAME:-localhost}
+      UPSTREAM: ${UPSTREAM:-http://backend:8080}
+      STREAM_PATH_PREFIX: ${STREAM_PATH_PREFIX:-/sync/}
+      CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-20m}
+      PROXY_READ_TIMEOUT: ${PROXY_READ_TIMEOUT:-300s}
+      PROXY_SEND_TIMEOUT: ${PROXY_SEND_TIMEOUT:-300s}
     restart: unless-stopped
     develop:
       watch:
         - action: rebuild
-          path: ./nginx/conf.d/default.conf
+          path: ./nginx/templates/dev.conf.template
+        - action: rebuild
+          path: ./nginx/templates/prod.conf.template
+        - action: rebuild
+          path: ./nginx/docker-entrypoint.d/05-select-template.sh
 
   backend:
     build:

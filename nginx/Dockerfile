@@ -1,4 +1,7 @@
 FROM nginx:1.27-alpine
 
-COPY conf.d/default.conf /etc/nginx/conf.d/default.conf
+RUN apk add --no-cache gettext
+
+COPY docker-entrypoint.d/ /docker-entrypoint.d/
+COPY templates/ /etc/nginx/templates/
 

@@ -38,6 +38,7 @@
 - 准备一个部署目录（例如 `/opt/fastapi-cicd`）包含：
   - `docker-compose.prod.yml`
   - `.env`
+  - 证书目录（默认读取宿主机 `/etc/nginx/certs`，通过 `CERTS_DIR` 可自定义）
 
 首次登录 TCR（服务器上执行一次即可）：
 ```bash
@@ -54,10 +55,15 @@ docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d --remove-orphans
 ```
 
+Nginx 容器可用的环境变量（用于配置域名、上游与流式路径）：
+- `SERVER_NAME`：对外域名
+- `UPSTREAM`：上游地址（默认 `http://backend:8080`）
+- `STREAM_PATH_PREFIX`：流式接口路径前缀（默认 `/sync/`）
+- `CERTS_DIR`：宿主机证书目录（默认 `/etc/nginx/certs`，容器内固定为 `/etc/nginx/certs`）
+
 部署/回滚到指定版本（例如 `sha-a1b2c3d` 或 `v0.1.0`）：
 ```bash
 export TAG=sha-a1b2c3d
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d --remove-orphans
 ```
-
