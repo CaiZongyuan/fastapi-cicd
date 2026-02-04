@@ -22,9 +22,9 @@
 | 后端 | Python 3.12、FastAPI、AgentScope、AgentScope Runtime |
 | 前端 | React 19、Vite、TanStack Start、Tailwind CSS、Bun |
 | 包管理 | uv (Python)、Bun (Node) |
-| 容器化 | Docker、Docker Compose |
+| 容器化 | Docker、Docker Compose、Nginx |
 | 测试 | Vitest (前端)、pytest (后端 - 计划中) |
-| CI/CD | GitHub Actions (计划中) |
+| CI/CD | GitHub Actions、腾讯云 TCR |
 
 ## 快速开始
 
@@ -63,12 +63,19 @@
 ### Docker 开发
 
 ```bash
-# 构建并启动所有服务
+# 构建并启动所有服务（nginx + backend）
 docker compose up --build
 
-# 开发模式（支持热重载）
-docker compose up  # 通过 Compose 实现文件监听
+# 开发模式（Compose develop.watch 文件监听）
+docker compose up --build --watch
 ```
+
+### 生产部署（腾讯云 TCR）
+
+后端 + nginx 镜像由 GitHub Actions（self-hosted runner）构建并推送到腾讯云 TCR。
+服务器端使用 `docker-compose.prod.yml` 拉取镜像并启动服务。
+
+需要的 GitHub Secrets 与服务器部署命令见：`docs/tcr-cicd.md`。
 
 ## 配置说明
 
@@ -85,10 +92,20 @@ docker compose up  # 通过 Compose 实现文件监听
 | `HOST` | 后端监听地址 (默认: `0.0.0.0`) |
 | `PORT` | 后端端口 (默认: `8080`) |
 
+### Nginx（Docker）环境变量
+
+Nginx 配置通过模板 + 环境变量渲染：
+- `NGINX_TEMPLATE`：`dev` 或 `prod`
+- `SERVER_NAME`：域名（生产）或主机名（开发）
+- `UPSTREAM`：上游地址（默认 `http://backend:8080`）
+- `STREAM_PATH_PREFIX`：流式接口路径前缀（默认 `/sync/`）
+- `CERTS_DIR`：宿主机证书目录（生产，默认 `/etc/nginx/certs`）
+
 ## 项目结构
 
 ```
 fastapi-cicd/
+├── .github/workflows/        # GitHub Actions（TCR CI/CD）
 ├── src/                      # Python 后端源码
 │   ├── __init__.py
 │   ├── server.py            # 后端入口
@@ -101,14 +118,20 @@ fastapi-cicd/
 │   │           └── chat.ts  # 聊天 API 集成
 │   ├── package.json
 │   └── bunfig.toml
+├── nginx/                    # Nginx 镜像（配置由 env 渲染）
+│   ├── Dockerfile
+│   ├── docker-entrypoint.d/
+│   └── templates/
 ├── docs/                     # 文档
-│   └── ci-cd-plan.md        # CI/CD 实施计划
+│   ├── ci-cd-plan.md        # CI/CD 实施计划
+│   └── tcr-cicd.md          # 后端 CI/CD 推送到腾讯云 TCR
 ├── tests/                    # 后端测试 (计划中)
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
 ├── .python-version
 ├── docker-compose.yml
+├── docker-compose.prod.yml   # 服务器部署（从 TCR 拉取）
 ├── Dockerfile
 ├── pyproject.toml           # Python 依赖
 └── uv.lock                  # Python 依赖锁定
@@ -156,13 +179,12 @@ bun run format
 
 ## CI/CD 计划
 
-本项目包含完整的 CI/CD 实施方案（详见 `docs/ci-cd-plan.md`）：
+本项目包含：
 
-- **CI**：GitHub Actions 自动化测试（单元测试 + Playwright E2E 测试）
-- **CD**：Docker 镜像构建、部署至腾讯云 TCR
-- **测试**：pytest (后端)、Vitest (前端)、Playwright (E2E)
+- **已实现（仅后端）**：GitHub Actions 构建并推送 `backend` + `nginx` 镜像到腾讯云 TCR（见 `docs/tcr-cicd.md`）。
+- **规划中**：后端/前端的单测 + E2E（见 `docs/ci-cd-plan.md`）。
 
-详见 [CI/CD 实施计划](./docs/ci-cd-plan.md)。
+更完整路线图见：`docs/ci-cd-plan.md`。
 
 ## 开发规范
 

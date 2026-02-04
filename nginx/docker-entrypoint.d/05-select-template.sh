@@ -21,7 +21,7 @@ case "$template" in
     ;;
 esac
 
-src="/etc/nginx/templates/${template}.conf.template"
+src="/etc/nginx/templates-src/${template}.conf.template"
 dst="/etc/nginx/templates/default.conf.template"
 
 if [ ! -f "$src" ]; then
@@ -29,5 +29,5 @@ if [ ! -f "$src" ]; then
   exit 1
 fi
 
+rm -f /etc/nginx/templates/*.template
 cp "$src" "$dst"
-

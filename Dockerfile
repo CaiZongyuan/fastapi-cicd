@@ -14,9 +14,11 @@ RUN python -m pip install --no-cache-dir --upgrade pip \
 ENV VIRTUAL_ENV=/opt/venv
 RUN python -m venv "$VIRTUAL_ENV"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+ENV UV_CACHE_DIR=/tmp/uv-cache
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --active
+RUN uv sync --frozen --no-dev --no-install-project --active \
+    && rm -rf "$UV_CACHE_DIR"
 
 COPY src ./src
 

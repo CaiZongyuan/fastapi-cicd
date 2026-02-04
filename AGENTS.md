@@ -5,14 +5,17 @@
 - `src/`: Python backend entrypoints and app code (see `src/agent_app.py` and `src/server.py`).
 - `docs/`: design notes and CI/CD planning (e.g., `docs/ci-cd-plan.md`).
 - `frontend/`: Vite + React (TanStack Start) app.
-- Root config: `pyproject.toml` + `uv.lock` (Python deps), `Dockerfile`/`docker-compose.yml` (containerized backend), `.env.example` (env var template).
+- `nginx/`: Nginx image (env-templated config for dev/prod).
+- `.github/workflows/`: GitHub Actions workflows (backend-only CI/CD to Tencent Cloud TCR).
+- Root config: `pyproject.toml` + `uv.lock` (Python deps), `Dockerfile`/`docker-compose.yml` (dev compose), `docker-compose.prod.yml` (server pull-from-TCR), `.env.example` (env var template).
 
 ## Build, Test, and Development Commands
 
 Backend (Python 3.12; dependency manager: `uv`):
 - Install deps: `uv sync --frozen`
 - Run locally (default `HOST=0.0.0.0`, `PORT=8080`): `uv run python -m src.server`
-- Run in Docker (includes live reload/sync via Compose “develop” watch): `docker compose up --build`
+- Run in Docker: `docker compose up --build`
+- Run in Docker with file watch: `docker compose up --build --watch`
 
 Frontend (Bun + Vite; runs on port 3000):
 - Install deps: `cd frontend && bun install --frozen-lockfile`

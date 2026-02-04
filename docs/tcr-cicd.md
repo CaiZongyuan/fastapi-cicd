@@ -13,8 +13,12 @@
 ### CD：推送到腾讯云 TCR
 - 工作流：`.github/workflows/tcr-cd.yml`
 - 触发：
-  - 推送到 `main`：push 两个 tag（`sha-xxxxxxx` + `latest`）
-  - 打 tag（`v*`）：push tag 本身（例如 `v0.1.0`）
+  - 打 tag（`v*`）：push 两个 tag（`v0.1.0` + `latest`）
+  - 支持手动触发（`workflow_dispatch`）：可传入 `tag` 输入用于测试推送 tag（注意：推送的 tag 名称不一定与实际 Git tag 对应的 commit 一致，按需使用）
+
+说明：
+- 该 CD 工作流默认跑在 **self-hosted GitHub Actions runner** 上（用于把构建与推送从 GitHub 托管 runner 挪到你的开发机/内网构建机，以提升推送到 TCR 的速度）。
+- 需要你自行在机器上安装并注册 runner，并确保该机器已安装 Docker/Buildx 且 runner 用户有权限执行 `docker`。
 
 需要在 GitHub 仓库设置以下 Secrets：
 - `TCR_REGISTRY`：例如 `ccr.ccs.tencentyun.com`

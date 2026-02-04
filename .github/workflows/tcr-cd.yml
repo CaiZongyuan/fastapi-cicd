@@ -2,20 +2,29 @@ name: tcr-cd
 
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to push (e.g. v0.1.0). If empty, uses the pushed tag ref."
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    env:
+      BUILDX_CACHE_ROOT: /tmp/fastapi-cicd-buildx-cache
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -35,30 +44,31 @@ jobs:
           REG="${{ secrets.TCR_REGISTRY }}"
           NS="${{ secrets.TCR_NAMESPACE }}"
 
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+          TAG_INPUT="${{ inputs.tag }}"
+          if [[ -n "${TAG_INPUT}" ]]; then
+            TAG="${TAG_INPUT}"
+          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             TAG="${GITHUB_REF_NAME}"
-            {
-              echo "backend_tags<<EOF"
-              echo "${REG}/${NS}/fastapi-cicd-backend:${TAG}"
-              echo "EOF"
-              echo "nginx_tags<<EOF"
-              echo "${REG}/${NS}/fastapi-cicd-nginx:${TAG}"
-              echo "EOF"
-            } >> "${GITHUB_OUTPUT}"
-            exit 0
+          else
+            echo "Expected a tag push (v*) or provide workflow_dispatch input 'tag'. Current ref: ${GITHUB_REF}." >&2
+            exit 1
           fi
-
-          SHA_SHORT="$(echo "${GITHUB_SHA}" | cut -c1-7)"
           {
             echo "backend_tags<<EOF"
-            echo "${REG}/${NS}/fastapi-cicd-backend:sha-${SHA_SHORT}"
+            echo "${REG}/${NS}/fastapi-cicd-backend:${TAG}"
             echo "${REG}/${NS}/fastapi-cicd-backend:latest"
             echo "EOF"
             echo "nginx_tags<<EOF"
-            echo "${REG}/${NS}/fastapi-cicd-nginx:sha-${SHA_SHORT}"
+            echo "${REG}/${NS}/fastapi-cicd-nginx:${TAG}"
             echo "${REG}/${NS}/fastapi-cicd-nginx:latest"
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"
+
+      - name: Prepare local Buildx cache dirs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${BUILDX_CACHE_ROOT}/backend" "${BUILDX_CACHE_ROOT}/nginx"
 
       - name: Build & push backend image
         uses: docker/build-push-action@v6
@@ -67,9 +77,20 @@ jobs:
           file: ./Dockerfile
           push: true
           platforms: linux/amd64
+          provenance: false
           tags: ${{ steps.meta.outputs.backend_tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=local,src=${{ env.BUILDX_CACHE_ROOT }}/backend
+          cache-to: type=local,dest=${{ env.BUILDX_CACHE_ROOT }}/backend-new,mode=max
+
+      - name: Finalize backend cache
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -d "${BUILDX_CACHE_ROOT}/backend-new" ]]; then
+            rm -rf "${BUILDX_CACHE_ROOT}/backend"
+            mv "${BUILDX_CACHE_ROOT}/backend-new" "${BUILDX_CACHE_ROOT}/backend"
+          fi
 
       - name: Build & push nginx image
         uses: docker/build-push-action@v6
@@ -78,6 +99,17 @@ jobs:
           file: ./nginx/Dockerfile
           push: true
           platforms: linux/amd64
+          provenance: false
           tags: ${{ steps.meta.outputs.nginx_tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=local,src=${{ env.BUILDX_CACHE_ROOT }}/nginx
+          cache-to: type=local,dest=${{ env.BUILDX_CACHE_ROOT }}/nginx-new,mode=max
+
+      - name: Finalize nginx cache
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -d "${BUILDX_CACHE_ROOT}/nginx-new" ]]; then
+            rm -rf "${BUILDX_CACHE_ROOT}/nginx"
+            mv "${BUILDX_CACHE_ROOT}/nginx-new" "${BUILDX_CACHE_ROOT}/nginx"
+          fi

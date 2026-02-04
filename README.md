@@ -22,9 +22,9 @@ A full-stack application with an AI assistant backend powered by AgentScope and 
 | Backend | Python 3.12, FastAPI, AgentScope, AgentScope Runtime |
 | Frontend | React 19, Vite, TanStack Start, Tailwind CSS, Bun |
 | Package Management | uv (Python), Bun (Node) |
-| Containerization | Docker, Docker Compose |
+| Containerization | Docker, Docker Compose, Nginx |
 | Testing | Vitest (frontend), pytest (backend - planned) |
-| CI/CD | GitHub Actions (planned) |
+| CI/CD | GitHub Actions, Tencent Cloud TCR |
 
 ## Quick Start
 
@@ -63,12 +63,19 @@ A full-stack application with an AI assistant backend powered by AgentScope and 
 ### Docker Development
 
 ```bash
-# Build and start all services
+# Build and start all services (nginx + backend)
 docker compose up --build
 
-# Development mode with hot reload
-docker compose up --build  # includes file watching via Compose
+# Development mode with file watching (Compose develop.watch)
+docker compose up --build --watch
 ```
+
+### Production (Tencent Cloud TCR)
+
+Backend-only + nginx images are built and pushed by GitHub Actions (self-hosted runner) to Tencent Cloud TCR.
+Server-side deploy uses `docker-compose.prod.yml` to pull images and start services.
+
+See `docs/tcr-cicd.md` for required GitHub Secrets and server deploy commands.
 
 ## Configuration
 
@@ -85,10 +92,20 @@ Copy `.env.example` to `.env` and configure:
 | `HOST` | Backend host (default: `0.0.0.0`) |
 | `PORT` | Backend port (default: `8080`) |
 
+### Nginx (Docker) Environment Variables
+
+Nginx config is rendered from templates via env vars:
+- `NGINX_TEMPLATE`: `dev` or `prod`
+- `SERVER_NAME`: domain (prod) or host (dev)
+- `UPSTREAM`: backend upstream (default: `http://backend:8080`)
+- `STREAM_PATH_PREFIX`: streaming path prefix (default: `/sync/`)
+- `CERTS_DIR`: host path to certs (prod, default: `/etc/nginx/certs`)
+
 ## Project Structure
 
 ```
 fastapi-cicd/
+├── .github/workflows/        # GitHub Actions (TCR CI/CD)
 ├── src/                      # Python backend source
 │   ├── __init__.py
 │   ├── server.py            # Backend entry point
@@ -101,14 +118,20 @@ fastapi-cicd/
 │   │           └── chat.ts  # Chat API integration
 │   ├── package.json
 │   └── bunfig.toml
+├── nginx/                    # Nginx image (env-templated config)
+│   ├── Dockerfile
+│   ├── docker-entrypoint.d/
+│   └── templates/
 ├── docs/                     # Documentation
-│   └── ci-cd-plan.md        # CI/CD implementation plan
+│   ├── ci-cd-plan.md        # CI/CD implementation plan
+│   └── tcr-cicd.md          # Backend CI/CD to Tencent Cloud TCR
 ├── tests/                    # Backend tests (planned)
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
 ├── .python-version
 ├── docker-compose.yml
+├── docker-compose.prod.yml   # Server deployment (pull from TCR)
 ├── Dockerfile
 ├── pyproject.toml           # Python dependencies
 └── uv.lock                  # Locked Python dependencies
@@ -156,13 +179,12 @@ bun run format
 
 ## CI/CD Plan
 
-This project includes a comprehensive CI/CD plan (see `docs/ci-cd-plan.md`) for:
+This project includes:
 
-- **CI**: GitHub Actions with automated testing (unit + E2E with Playwright)
-- **CD**: Docker image builds, deployment to Tencent Cloud with TCR
-- **Testing**: pytest (backend), Vitest (frontend), Playwright (E2E)
+- **Implemented (backend-only)**: GitHub Actions builds and pushes `backend` + `nginx` images to Tencent Cloud TCR (see `docs/tcr-cicd.md`).
+- **Planned**: Full CI (unit + E2E) for backend/frontend (see `docs/ci-cd-plan.md`).
 
-See [CI/CD Plan](./docs/ci-cd-plan.md) for detailed implementation strategy.
+See `docs/ci-cd-plan.md` for the broader roadmap.
 
 ## Development Guidelines
 
