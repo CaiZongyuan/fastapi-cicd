@@ -1,4 +1,18 @@
 services:
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./nginx/conf.d/default.conf
+
   backend:
     build:
       context: .

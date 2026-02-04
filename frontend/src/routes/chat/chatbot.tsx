@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useChat } from '@ai-sdk/react'
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, Sparkles } from 'lucide-react'
 
 export const Route = createFileRoute('/chat/chatbot')({
@@ -9,8 +9,10 @@ export const Route = createFileRoute('/chat/chatbot')({
 
 function RouteComponent() {
   const [input, setInput] = useState('')
-  const { messages, sendMessage, isLoading } = useChat()
+  const { messages, sendMessage, status } = useChat()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const isLoading = status === 'submitted' || status === 'streaming'
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
