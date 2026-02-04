@@ -52,16 +52,10 @@ jobs:
           fi
 
           SHA_SHORT="$(echo "${GITHUB_SHA}" | cut -c1-7)"
-          BACKEND_TAGS="$(cat <<EOF
-${REG}/${NS}/fastapi-cicd-backend:sha-${SHA_SHORT}
-${REG}/${NS}/fastapi-cicd-backend:latest
-EOF
-)"
-          NGINX_TAGS="$(cat <<EOF
-${REG}/${NS}/fastapi-cicd-nginx:sha-${SHA_SHORT}
-${REG}/${NS}/fastapi-cicd-nginx:latest
-EOF
-)"
+          BACKEND_TAGS="${REG}/${NS}/fastapi-cicd-backend:sha-${SHA_SHORT}
+          ${REG}/${NS}/fastapi-cicd-backend:latest"
+          NGINX_TAGS="${REG}/${NS}/fastapi-cicd-nginx:sha-${SHA_SHORT}
+          ${REG}/${NS}/fastapi-cicd-nginx:latest"
           {
             echo "backend_tags<<EOF"
             echo "${BACKEND_TAGS}"
