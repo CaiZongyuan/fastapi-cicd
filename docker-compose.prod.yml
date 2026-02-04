@@ -1,0 +1,18 @@
+services:
+  nginx:
+    image: ${TCR_REGISTRY:?}/${TCR_NAMESPACE:?}/fastapi-cicd-nginx:${TAG:-latest}
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    image: ${TCR_REGISTRY:?}/${TCR_NAMESPACE:?}/fastapi-cicd-backend:${TAG:-latest}
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+    restart: unless-stopped
+
