@@ -76,6 +76,7 @@ Backend-only + nginx images are built and pushed by GitHub Actions (GitHub-hoste
 Server-side deploy uses `docker-compose.prod.yml` to pull images and start services.
 
 See `docs/tcr-cicd.md` for required GitHub Secrets and server deploy commands.
+See `docs/tcr-cicd.md` for production governance (GitHub Environments + tag-driven releases).
 
 ## Configuration
 

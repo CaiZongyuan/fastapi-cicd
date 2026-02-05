@@ -42,6 +42,7 @@ jobs:
           set -euo pipefail
           REG="${{ secrets.TCR_REGISTRY }}"
           NS="${{ secrets.TCR_NAMESPACE }}"
+          SHA_SHORT="${GITHUB_SHA::7}"
 
           TAG_INPUT="${{ inputs.tag }}"
           if [[ -n "${TAG_INPUT}" ]]; then
@@ -55,10 +56,12 @@ jobs:
           {
             echo "backend_tags<<EOF"
             echo "${REG}/${NS}/fastapi-cicd-backend:${TAG}"
+            echo "${REG}/${NS}/fastapi-cicd-backend:sha-${SHA_SHORT}"
             echo "${REG}/${NS}/fastapi-cicd-backend:latest"
             echo "EOF"
             echo "nginx_tags<<EOF"
             echo "${REG}/${NS}/fastapi-cicd-nginx:${TAG}"
+            echo "${REG}/${NS}/fastapi-cicd-nginx:sha-${SHA_SHORT}"
             echo "${REG}/${NS}/fastapi-cicd-nginx:latest"
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"

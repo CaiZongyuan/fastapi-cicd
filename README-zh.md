@@ -76,6 +76,7 @@ docker compose up --build --watch
 服务器端使用 `docker-compose.prod.yml` 拉取镜像并启动服务。
 
 需要的 GitHub Secrets 与服务器部署命令见：`docs/tcr-cicd.md`。
+生产治理（GitHub Environments 审批 + 版本化标签发布）见：`docs/tcr-cicd.md` 第 3 节。
 
 ## 配置说明
 

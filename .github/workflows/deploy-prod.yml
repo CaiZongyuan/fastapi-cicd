@@ -1,0 +1,184 @@
+name: deploy-prod
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to deploy (e.g. v0.1.0). If empty, uses the pushed tag ref."
+        required: false
+        type: string
+      healthcheck_url:
+        description: "Optional healthcheck URL (e.g. https://api.example.com/health). Overrides environment variable."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+    steps:
+      - name: Compute deploy inputs
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG_INPUT="${{ inputs.tag }}"
+          if [[ -n "${TAG_INPUT}" ]]; then
+            TAG="${TAG_INPUT}"
+          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            echo "Expected a tag push (v*) or provide workflow_dispatch input 'tag'. Current ref: ${GITHUB_REF}." >&2
+            exit 1
+          fi
+
+          if [[ "${TAG}" != v* ]]; then
+            echo "Refusing to deploy non-v* tag: ${TAG}" >&2
+            exit 1
+          fi
+
+          # Prefer workflow_dispatch input; otherwise use environment variable (prod) if set.
+          HC_INPUT="${{ inputs.healthcheck_url }}"
+          HC_ENV="${{ vars.PROD_HEALTHCHECK_URL }}"
+          if [[ -n "${HC_INPUT}" ]]; then
+            HC="${HC_INPUT}"
+          else
+            HC="${HC_ENV}"
+          fi
+
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "healthcheck_url=${HC}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up SSH
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          if [[ -z "${SSH_KEY}" ]]; then
+            echo "Missing secret: PROD_SSH_KEY" >&2
+            exit 1
+          fi
+          printf "%s\n" "${SSH_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          if [[ -z "${SSH_KNOWN_HOSTS}" ]]; then
+            echo "Missing secret: PROD_SSH_KNOWN_HOSTS (recommended: ssh-keyscan -H <host>)" >&2
+            exit 1
+          fi
+          printf "%s\n" "${SSH_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy via SSH (docker compose pull/up)
+        shell: bash
+        env:
+          HOST: ${{ secrets.PROD_SSH_HOST }}
+          USER: ${{ secrets.PROD_SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
+          TAG: ${{ steps.vars.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${HOST}" || -z "${USER}" ]]; then
+            echo "Missing secrets: PROD_SSH_HOST / PROD_SSH_USER" >&2
+            exit 1
+          fi
+          DEPLOY_PATH="${DEPLOY_PATH:-/opt/fastapi-cicd}"
+
+          ssh_opts=(
+            -o BatchMode=yes
+            -o StrictHostKeyChecking=yes
+            -o ConnectTimeout=10
+            -o ConnectionAttempts=3
+            -o ServerAliveInterval=15
+            -o ServerAliveCountMax=4
+          )
+
+          remote_script="$(cat <<'EOS'
+          set -euo pipefail
+
+          if [[ -z "${DEPLOY_PATH:-}" ]]; then
+            echo "DEPLOY_PATH is empty" >&2
+            exit 1
+          fi
+          if [[ -z "${TAG:-}" ]]; then
+            echo "TAG is empty" >&2
+            exit 1
+          fi
+
+          cd "${DEPLOY_PATH}"
+          if [[ ! -f docker-compose.prod.yml ]]; then
+            echo "docker-compose.prod.yml not found in ${DEPLOY_PATH}" >&2
+            exit 1
+          fi
+          if [[ ! -f .env ]]; then
+            echo ".env not found in ${DEPLOY_PATH}" >&2
+            exit 1
+          fi
+
+          prev_tag="$(grep -E '^TAG=' .env | head -n1 | cut -d= -f2- || true)"
+          if [[ -n "${prev_tag}" ]]; then
+            printf "%s\n" "${prev_tag}" > .deploy_prev_tag
+          fi
+
+          if grep -qE '^TAG=' .env; then
+            sed -i "s/^TAG=.*/TAG=${TAG}/" .env
+          else
+            printf "\nTAG=%s\n" "${TAG}" >> .env
+          fi
+          printf "%s\n" "${TAG}" > .deploy_last_tag
+
+          export DOCKER_CLIENT_TIMEOUT=300
+          export COMPOSE_HTTP_TIMEOUT=300
+
+          docker compose -f docker-compose.prod.yml pull
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+          docker compose -f docker-compose.prod.yml ps
+          EOS
+          )"
+
+          for n in 1 2 3; do
+            echo "SSH deploy attempt ${n}/3 (host=${HOST}, path=${DEPLOY_PATH}, tag=${TAG})"
+            if timeout 240s ssh "${ssh_opts[@]}" "${USER}@${HOST}" "DEPLOY_PATH='${DEPLOY_PATH}' TAG='${TAG}' bash -s" <<<"${remote_script}"; then
+              exit 0
+            fi
+            sleep $((n * 20))
+          done
+
+          echo "Deploy failed after retries." >&2
+          exit 1
+
+      - name: Healthcheck (optional)
+        if: ${{ steps.vars.outputs.healthcheck_url != '' }}
+        shell: bash
+        env:
+          HEALTHCHECK_URL: ${{ steps.vars.outputs.healthcheck_url }}
+        run: |
+          set -euo pipefail
+          echo "Healthcheck URL: ${HEALTHCHECK_URL}"
+          for i in $(seq 1 24); do
+            if curl -fsS --max-time 5 "${HEALTHCHECK_URL}" >/dev/null; then
+              echo "Healthcheck OK"
+              exit 0
+            fi
+            echo "Healthcheck not ready (${i}/24), retrying in 5s..."
+            sleep 5
+          done
+          echo "Healthcheck failed (timed out)." >&2
+          exit 1
