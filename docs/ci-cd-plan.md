@@ -17,7 +17,7 @@
 - 全程可复现：依赖锁定（`uv.lock`、`bun.lock`）、镜像 tag 可追溯（commit SHA / tag）。
 
 ### 原则
-- CI 与 CD 解耦：CI 使用 GitHub-hosted runner；CD 优先使用腾讯云上的 self-hosted runner（更贴近生产网络环境）。
+- CI 与 CD 解耦：CI 与 CD 均使用 GitHub-hosted runner（便于零运维落地）。
 - 生产只拉镜像不编译：生产机器上尽量只做 `docker compose pull && docker compose up -d`。
 - 关键依赖都可镜像加速：Python/Node/Docker 镜像、系统包源（若需要）。
 
@@ -127,10 +127,10 @@ Jobs 建议拆分（可并行）：
 步骤建议：
 1) 读取版本标签（优先 tag；否则用短 SHA）
 2) 构建并推送镜像（backend/frontend）
-3) 部署到腾讯云（推荐 self-hosted runner 或 SSH）
+3) 部署到腾讯云（推荐 SSH / 远程拉取）
 
 部署方式（推荐顺序）：
-- 推荐 A：腾讯云服务器上部署 self-hosted runner
+- 推荐 A：服务器端直接拉取镜像部署（docker compose / k8s）
   - 优点：依赖/镜像拉取走国内网络；部署执行更稳定；无需开放 SSH 给 GitHub IP
   - 缺点：需要维护 runner 生命周期与权限隔离
 - 备选 B：GitHub Actions 通过 SSH 执行远程命令
@@ -155,14 +155,14 @@ tag 规则建议：
 ## 7. 大陆地区加速与连接稳定性
 
 ### 7.1 GitHub 连接策略
-- CD 尽量在腾讯云内执行（self-hosted runner），减少“GitHub -> 国内服务器”的长链路不确定性。
+- 说明：CD 由 GitHub-hosted runner 执行，网络链路由测速结果决定入口选择。
 - 若必须 SSH 部署：
   - 为生产环境设置 GitHub Environment + 审批（避免误触发）
   - SSH key 仅赋予最小权限，并限制来源/命令（可选）
 
 ### 7.2 Python（Astral `uv`）镜像加速
 
-在腾讯云服务器（或 self-hosted runner）配置 `uv` 的 index 镜像。
+在腾讯云服务器配置 `uv` 的 index 镜像（如需）。
 
 位置（Linux/Unix）：
 - `~/.config/uv/uv.toml` 或 `/etc/uv/uv.toml`
@@ -179,7 +179,7 @@ CI 中也可以用同样方式在 job 里写入该文件，保证行为一致。
 ### 7.3 前端依赖（Bun/npm registry）加速
 - 建议在腾讯云机器上配置 npm registry 镜像（通过 `.npmrc` 或环境变量），例如：
   - `registry=https://registry.npmmirror.com`
-- 在 CI（GitHub-hosted runner）通常不需要，但在 self-hosted runner/生产构建时会显著提速。
+- 在 CI（GitHub-hosted runner）通常不需要，但在生产构建时可能会显著提速。
 
 ### 7.4 Docker 镜像加速
 - 生产服务器建议配置 Docker daemon 的 registry mirror（使用腾讯云提供的镜像加速地址），以提升拉取基础镜像与依赖镜像速度。
@@ -212,7 +212,7 @@ GitHub Secrets（建议）：
 - 增加 health check + compose 就绪等待
 - 失败上传 report
 
-### M3：CD 落地（推荐 self-hosted runner）
+### M3：CD 落地（GitHub-hosted runner）
 - 镜像构建与推送（后端/前端）
 - 腾讯云部署（pull + up）
 - 回滚策略与保留最近 N 个版本
@@ -224,4 +224,4 @@ GitHub Secrets（建议）：
 1) 生产环境是否使用 `nginx` 统一入口（推荐）？
 2) 镜像仓库选型：腾讯云 TCR / Docker Hub / GHCR？
 3) 后端对外运行方式：是否使用 `uvicorn`/`gunicorn`，以及监听端口？
-4) 是否采用 self-hosted runner（推荐）还是 SSH 部署？
+4) 是否采用 SSH 部署？

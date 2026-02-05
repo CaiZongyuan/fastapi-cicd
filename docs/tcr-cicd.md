@@ -17,11 +17,11 @@
   - 支持手动触发（`workflow_dispatch`）：可传入 `tag` 输入用于测试推送 tag（注意：推送的 tag 名称不一定与实际 Git tag 对应的 commit 一致，按需使用）
 
 说明：
-- 该 CD 工作流默认跑在 **self-hosted GitHub Actions runner** 上（用于把构建与推送从 GitHub 托管 runner 挪到你的开发机/内网构建机，以提升推送到 TCR 的速度）。
-- 需要你自行在机器上安装并注册 runner，并确保该机器已安装 Docker/Buildx 且 runner 用户有权限执行 `docker`。
+- 该 CD 工作流默认跑在 **GitHub-hosted runner（ubuntu-latest）** 上，便于零运维落地。
+- 不需要自建 runner；GitHub 会提供运行环境与 Docker/Buildx。
 
 需要在 GitHub 仓库设置以下 Secrets：
-- `TCR_REGISTRY`：例如 `ccr.ccs.tencentyun.com`
+- `TCR_REGISTRY`：例如 `useccr.ccs.tencentyun.com`（建议用 `docs/tcr-speed-test.md` 的结果选一个最优入口）
 - `TCR_NAMESPACE`：你的 TCR 命名空间
 - `TCR_USERNAME`：TCR 登录用户名
 - `TCR_PASSWORD`：TCR 登录密码/Token
@@ -51,7 +51,7 @@ docker login ${TCR_REGISTRY} -u ${TCR_USERNAME}
 
 部署/更新到 `latest`（服务器上）：
 ```bash
-export TCR_REGISTRY=ccr.ccs.tencentyun.com
+export TCR_REGISTRY=useccr.ccs.tencentyun.com
 export TCR_NAMESPACE=YOUR_NAMESPACE
 export TAG=latest
 

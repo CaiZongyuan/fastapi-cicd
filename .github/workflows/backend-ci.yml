@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   docker-build:
@@ -33,4 +34,3 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
-

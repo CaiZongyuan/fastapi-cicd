@@ -72,7 +72,7 @@ docker compose up --build --watch
 
 ### Production (Tencent Cloud TCR)
 
-Backend-only + nginx images are built and pushed by GitHub Actions (self-hosted runner) to Tencent Cloud TCR.
+Backend-only + nginx images are built and pushed by GitHub Actions (GitHub-hosted runner) to Tencent Cloud TCR.
 Server-side deploy uses `docker-compose.prod.yml` to pull images and start services.
 
 See `docs/tcr-cicd.md` for required GitHub Secrets and server deploy commands.

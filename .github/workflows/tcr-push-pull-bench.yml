@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   bench:
@@ -81,4 +82,3 @@ jobs:
         with:
           name: tcr-push-pull-out
           path: tcr-push-pull-out
-

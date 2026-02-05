@@ -72,7 +72,7 @@ docker compose up --build --watch
 
 ### 生产部署（腾讯云 TCR）
 
-后端 + nginx 镜像由 GitHub Actions（self-hosted runner）构建并推送到腾讯云 TCR。
+后端 + nginx 镜像由 GitHub Actions（GitHub-hosted runner）构建并推送到腾讯云 TCR。
 服务器端使用 `docker-compose.prod.yml` 拉取镜像并启动服务。
 
 需要的 GitHub Secrets 与服务器部署命令见：`docs/tcr-cicd.md`。

@@ -13,22 +13,14 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   build-and-push:
-    runs-on: self-hosted
-    env:
-      BUILDX_CACHE_ROOT: /tmp/fastapi-cicd-buildx-cache
-      DOCKER_CONFIG: /tmp/fastapi-cicd-docker-config
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Prepare Docker config dir
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "${DOCKER_CONFIG}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -71,12 +63,6 @@ jobs:
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Prepare local Buildx cache dirs
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "${BUILDX_CACHE_ROOT}/backend" "${BUILDX_CACHE_ROOT}/nginx"
-
       - name: Build & push backend image
         uses: docker/build-push-action@v6
         with:
@@ -86,18 +72,8 @@ jobs:
           platforms: linux/amd64
           provenance: false
           tags: ${{ steps.meta.outputs.backend_tags }}
-          cache-from: type=local,src=${{ env.BUILDX_CACHE_ROOT }}/backend
-          cache-to: type=local,dest=${{ env.BUILDX_CACHE_ROOT }}/backend-new,mode=max
-
-      - name: Finalize backend cache
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -d "${BUILDX_CACHE_ROOT}/backend-new" ]]; then
-            rm -rf "${BUILDX_CACHE_ROOT}/backend"
-            mv "${BUILDX_CACHE_ROOT}/backend-new" "${BUILDX_CACHE_ROOT}/backend"
-          fi
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
 
       - name: Build & push nginx image
         uses: docker/build-push-action@v6
@@ -108,15 +84,5 @@ jobs:
           platforms: linux/amd64
           provenance: false
           tags: ${{ steps.meta.outputs.nginx_tags }}
-          cache-from: type=local,src=${{ env.BUILDX_CACHE_ROOT }}/nginx
-          cache-to: type=local,dest=${{ env.BUILDX_CACHE_ROOT }}/nginx-new,mode=max
-
-      - name: Finalize nginx cache
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -d "${BUILDX_CACHE_ROOT}/nginx-new" ]]; then
-            rm -rf "${BUILDX_CACHE_ROOT}/nginx"
-            mv "${BUILDX_CACHE_ROOT}/nginx-new" "${BUILDX_CACHE_ROOT}/nginx"
-          fi
+          cache-from: type=gha,scope=nginx
+          cache-to: type=gha,scope=nginx,mode=max
