@@ -1,0 +1,84 @@
+name: tcr-push-pull-bench
+
+on:
+  workflow_dispatch:
+    inputs:
+      repeats:
+        description: "Repeat count per host (push+pull per attempt)"
+        required: true
+        default: "3"
+      payload_mb:
+        description: "Payload size (MB) per attempt"
+        required: true
+        default: "8"
+      hosts_file:
+        description: "Hosts file path in repo"
+        required: true
+        default: "docs/tcr-speed-test.hosts.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Runner egress info
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "== Runner info =="
+          uname -a || true
+          echo
+          echo "== Public IP =="
+          curl -fsS https://ifconfig.me || true
+          echo
+          echo "== Resolver =="
+          cat /etc/resolv.conf || true
+          echo
+
+      - name: Docker info
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker version
+          docker info
+
+      - name: Push/Pull bench (raw + summary)
+        shell: bash
+        env:
+          TCR_USERNAME: ${{ secrets.TCR_USERNAME }}
+          TCR_PASSWORD: ${{ secrets.TCR_PASSWORD }}
+          TCR_NAMESPACE: ${{ secrets.TCR_NAMESPACE }}
+          # Prefer a dedicated repo for benchmarks. Falls back to TCR_REPO if set.
+          TCR_BENCH_REPO: ${{ secrets.TCR_BENCH_REPO }}
+          TCR_REPO: ${{ secrets.TCR_REPO }}
+        run: |
+          set -euo pipefail
+          python scripts/tcr_push_pull_bench.py \
+            --hosts-file "${{ inputs.hosts_file }}" \
+            --repeats "${{ inputs.repeats }}" \
+            --payload-mb "${{ inputs.payload_mb }}"
+
+      - name: Plot (push median)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir matplotlib
+          python scripts/tcr_push_pull_plot.py --summary-csv tcr-push-pull-out/summary.csv --out tcr-push-pull-out/push_plot.png --metric push_sec_median
+          python scripts/tcr_push_pull_plot.py --summary-csv tcr-push-pull-out/summary.csv --out tcr-push-pull-out/pull_plot.png --metric pull_sec_median
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcr-push-pull-out
+          path: tcr-push-pull-out
+

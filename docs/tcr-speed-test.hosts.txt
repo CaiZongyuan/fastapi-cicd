@@ -1,0 +1,18 @@
+# One target per line.
+# Supported formats:
+# - host
+# - label,host
+#
+# Tencent Cloud (personal) multi-region endpoints (as of this repo's draft).
+广州,ccr.ccs.tencentyun.com
+中国香港,hkccr.ccs.tencentyun.com
+东京,jpccr.ccs.tencentyun.com
+新加坡,sgccr.ccs.tencentyun.com
+曼谷,thccr.ccs.tencentyun.com
+雅加达,jktccr.ccs.tencentyun.com
+硅谷,uswccr.ccs.tencentyun.com
+弗吉尼亚,useccr.ccs.tencentyun.com
+法兰克福,deccr.ccs.tencentyun.com
+利雅得,saccr.ccs.tencentyun.com
+圣保罗,saoccr.ccs.tencentyun.com
+

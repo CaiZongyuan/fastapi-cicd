@@ -1,0 +1,73 @@
+name: tcr-speed-test
+
+on:
+  workflow_dispatch:
+    inputs:
+      repeats:
+        description: "Repeat count per host"
+        required: true
+        default: "5"
+      timeout:
+        description: "Timeout seconds per step"
+        required: true
+        default: "5"
+      insecure_tls:
+        description: "Skip TLS verification (true/false)"
+        required: true
+        default: "false"
+      hosts_file:
+        description: "Hosts file path in repo"
+        required: true
+        default: "docs/tcr-speed-test.hosts.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  speed-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Runner egress info
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "== Runner info =="
+          uname -a || true
+          echo
+          echo "== Public IP =="
+          curl -fsS https://ifconfig.me || true
+          echo
+          echo "== Resolver =="
+          cat /etc/resolv.conf || true
+          echo
+
+      - name: Run speed test (raw + summary)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/tcr_speed_test.py \
+            --hosts-file "${{ inputs.hosts_file }}" \
+            --repeats "${{ inputs.repeats }}" \
+            --timeout "${{ inputs.timeout }}" \
+            $( [[ "${{ inputs.insecure_tls }}" == "true" ]] && echo "--insecure" || true )
+
+      - name: Plot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir matplotlib
+          python scripts/tcr_speed_plot.py --summary-csv tcr-speed-test-out/summary.csv --out tcr-speed-test-out/plot.png
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcr-speed-test-out
+          path: tcr-speed-test-out
