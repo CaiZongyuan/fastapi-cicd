@@ -10,12 +10,43 @@
 # - PROXY_READ_TIMEOUT: default "3600s"
 # - PROXY_SEND_TIMEOUT: default "3600s"
 
+# =========================================================
+# 1) HTTP 安全防御：拦截所有非指定域名的 80 端口访问
+# =========================================================
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
+
+# =========================================================
+# 2) HTTPS 安全防御：拦截所有非指定域名的 443 端口访问
+# =========================================================
+server {
+    listen 443 ssl http2 default_server;
+    listen [::]:443 ssl http2 default_server;
+    server_name _;
+
+    # 借用现有的证书来完成 TLS 握手，否则无法拦截加密流量
+    ssl_certificate     ${SSL_CERT_PATH};
+    ssl_certificate_key ${SSL_KEY_PATH};
+
+    return 444;
+}
+
+# =========================================================
+# 3) 合法域名跳转：HTTP -> HTTPS
+# =========================================================
 server {
     listen 80;
     server_name ${SERVER_NAME};
     return 301 https://$host$request_uri;
 }
 
+# =========================================================
+# 4) 业务逻辑：真正的 HTTPS 服务
+# =========================================================
 server {
     listen 443 ssl http2;
     server_name ${SERVER_NAME};
@@ -23,14 +54,18 @@ server {
     ssl_certificate     ${SSL_CERT_PATH};
     ssl_certificate_key ${SSL_KEY_PATH};
 
+    # 推荐增加的安全优化
     ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 10m;
+    ssl_session_timeout 1d;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    add_header Strict-Transport-Security "max-age=31536000" always;
 
     client_max_body_size ${CLIENT_MAX_BODY_SIZE};
 
+    # 针对特定的 Stream 路径优化（长连接/流式）
     location ^~ ${STREAM_PATH_PREFIX} {
         proxy_pass ${UPSTREAM};
-
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -43,9 +78,9 @@ server {
         proxy_send_timeout ${PROXY_SEND_TIMEOUT};
     }
 
+    # 标准 API/网页 代理
     location / {
         proxy_pass ${UPSTREAM};
-
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -55,4 +90,3 @@ server {
         proxy_read_timeout 60s;
     }
 }
-

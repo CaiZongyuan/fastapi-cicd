@@ -232,6 +232,17 @@ sudo usermod -aG docker deploy
 sudo chown -R deploy:deploy /opt/fastapi-cicd
 ```
 
+4) **以 deploy 用户身份登录 TCR**（必需）：
+
+Docker 登录凭证按用户隔离存储，deploy 用户需要独立登录：
+
+```bash
+# 以 deploy 用户身份登录 TCR
+sudo -u deploy docker login ${TCR_REGISTRY} -u ${TCR_USERNAME}
+```
+
+这会把凭证保存到 `/home/deploy/.docker/config.json`，之后 GitHub Actions 通过 SSH 以 deploy 用户执行部署时就能拉取镜像了。
+
 （可选）加固 sshd（按你团队策略决定，改完记得验证不会把自己锁在门外）：
 - 禁用密码登录：`PasswordAuthentication no`
 - 禁止 root 直登：`PermitRootLogin no`
